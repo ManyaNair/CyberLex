@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberlex Document Query</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        h1 {
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 32px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #1a1a2e;
+        }
+
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .upload-area:hover {
+            border-color: #4a6cf7;
+            background: #f8f9ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #4a6cf7;
+            background: #f0f4ff;
+        }
+
+        .upload-area input[type="file"] {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .status {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status.success {
+            display: block;
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status.error {
+            display: block;
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .status.loading {
+            display: block;
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .query-section {
+            display: none;
+        }
+
+        .query-section.active {
+            display: block;
+        }
+
+        .query-input {
+            display: flex;
+            gap: 12px;
+        }
+
+        .query-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .query-input input:focus {
+            outline: none;
+            border-color: #4a6cf7;
+            box-shadow: 0 0 0 3px rgba(74, 108, 247, 0.1);
+        }
+
+        button {
+            background: #4a6cf7;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #3a5ce5;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .results {
+            margin-top: 24px;
+        }
+
+        .result-item {
+            background: #f8f9fa;
+            border-left: 4px solid #4a6cf7;
+            padding: 16px;
+            margin-bottom: 12px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .result-text {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+
+        .entities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .entity-tag {
+            background: #e8eaff;
+            color: #4a6cf7;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 13px;
+        }
+
+        .entity-tag .label {
+            color: #888;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+
+        .no-results {
+            color: #666;
+            font-style: italic;
+        }
+
+        .file-name {
+            margin-top: 12px;
+            color: #4a6cf7;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cyberlex</h1>
+    <p class="subtitle">Upload a document and query it using natural language</p>
+
+    <div class="card">
+        <h2>1. Upload Document</h2>
+        <div class="upload-area" id="uploadArea">
+            <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt">
+            <div class="upload-icon">📄</div>
+            <p>Click or drag a file here to upload</p>
+            <p style="color: #888; font-size: 14px;">Supports PDF, DOC, DOCX, TXT</p>
+        </div>
+        <div class="file-name" id="fileName"></div>
+        <div class="status" id="uploadStatus"></div>
+    </div>
+
+    <div class="card query-section" id="querySection">
+        <h2>2. Query Document</h2>
+        <div class="query-input">
+            <input type="text" id="queryInput" placeholder="Ask a question about the document...">
+            <button id="queryBtn">Search</button>
+        </div>
+        <div class="status" id="queryStatus"></div>
+        <div class="results" id="results"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const querySection = document.getElementById('querySection');
+        const queryInput = document.getElementById('queryInput');
+        const queryBtn = document.getElementById('queryBtn');
+        const queryStatus = document.getElementById('queryStatus');
+        const results = document.getElementById('results');
+
+        // Drag and drop handling
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileUpload(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFileUpload(e.target.files[0]);
+            }
+        });
+
+        async function handleFileUpload(file) {
+            fileName.textContent = `Selected: ${file.name}`;
+            uploadStatus.className = 'status loading';
+            uploadStatus.textContent = 'Uploading and processing document...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    uploadStatus.className = 'status success';
+                    uploadStatus.textContent = '✓ ' + data.message;
+                    querySection.classList.add('active');
+                    queryInput.focus();
+                } else {
+                    uploadStatus.className = 'status error';
+                    uploadStatus.textContent = '✗ ' + (data.error || 'Upload failed');
+                }
+            } catch (error) {
+                uploadStatus.className = 'status error';
+                uploadStatus.textContent = '✗ Connection error. Is the server running?';
+            }
+        }
+
+        // Query handling
+        queryBtn.addEventListener('click', handleQuery);
+        queryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleQuery();
+        });
+
+        async function handleQuery() {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            queryBtn.disabled = true;
+            queryStatus.className = 'status loading';
+            queryStatus.textContent = 'Searching...';
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    queryStatus.className = 'status';
+                    queryStatus.style.display = 'none';
+
+                    if (data.excerpts && data.excerpts.length > 0) {
+                        results.innerHTML = data.excerpts.map(excerpt => `
+                            <div class="result-item">
+                                <div class="result-text">${excerpt.text}</div>
+                                ${excerpt.entities.length ? `
+                                    <div class="entities">
+                                        ${excerpt.entities.map(ent => `
+                                            <span class="entity-tag">
+                                                ${ent.text}<span class="label">${ent.label}</span>
+                                            </span>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('');
+                    } else {
+                        results.innerHTML = '<p class="no-results">No matching excerpts found. Try a different query.</p>';
+                    }
+                } else {
+                    queryStatus.className = 'status error';
+                    queryStatus.textContent = '✗ ' + (data.error || 'Query failed');
+                }
+            } catch (error) {
+                queryStatus.className = 'status error';
+                queryStatus.textContent = '✗ Connection error. Is the server running?';
+            }
+
+            queryBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
